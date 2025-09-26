@@ -6,6 +6,7 @@ function generateUserId(name) {
     return `${prefix}${random}`;
 }
 
+
 exports.createUser = async (req, res) => {
     try {
         const { username, fatherName, mobile, email, dob, designationId } = req.body;
