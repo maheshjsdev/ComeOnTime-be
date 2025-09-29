@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({
     userRole: { type: String, required: true, default: '3' },
     dob: { type: Date, required: true },
     designationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Designation', required: true }
+    ,password: { type: String, required: true, default: 'password@123' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema, 'User');

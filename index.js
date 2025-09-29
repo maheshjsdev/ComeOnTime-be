@@ -25,5 +25,5 @@ app.use('/designation', require('./routes/designation.routes'));
 
 const PORT = process.env.PORT || 4321;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`port: http://localhost:${PORT}/`);
 });
