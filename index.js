@@ -23,7 +23,7 @@ app.use('/roles', require('./routes/role.routes'));
 app.use('/token', require('./routes/token.routes'));
 app.use('/designation', require('./routes/designation.routes'));
 
-const PORT = process.env.PORT || 4321;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`port: http://localhost:${PORT}/`);
 });

@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const designationController = require('../controllers/designation.controller');
+const authMiddleware = require('../middleware/auth.middleware');
 
-router.get('/', designationController.getAllDesignations);
-router.post('/create', designationController.createDesignation);
-router.put('/update/:id', designationController.updateDesignation);
-router.delete('/delete/:id', designationController.deleteDesignation);
+router.get('/', authMiddleware, designationController.getAllDesignations);
+
+router.post('/create', authMiddleware, designationController.createDesignation);
+router.post('/update', authMiddleware, designationController.updateDesignation); 
+router.post('/delete', authMiddleware, designationController.deleteDesignation); 
 
 module.exports = router;

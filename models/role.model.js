@@ -5,7 +5,6 @@ const roleSchema = new mongoose.Schema({
   roleName: {
     type: String,
     required: true,
-    enum: ['super Admin', 'admin', 'user'],
     unique: true
   }
 }, { timestamps: true });

@@ -1,115 +1,71 @@
 const mongoose = require("mongoose");
 const Admin = require("../models/admin.modal");
-const Designation = require('../models/designation.model');
+const Role = require("../models/role.model");
+const SuperAdmin = require('../models/superadmin.model');
 
-// Generate userId
-function generateUserId(name) {
-  const cleanName = name.replace(/\s+/g, ""); // remove all spaces
-  const prefix = cleanName.substring(0, 3).toUpperCase();
-  const random = Math.floor(10000 + Math.random() * 90000);
-  return `${prefix}${random}`;
+// Helper: PascalCase and generate UserId
+function generateUserId(companyName) {
+  const pascalCaseName = companyName
+    .replace(/[^a-zA-Z0-9 ]/g, "")
+    .split(/\s+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join("");
+
+  const randomDigits = Math.floor(100 + Math.random() * 900); // 100–999
+  return `${pascalCaseName}${randomDigits}`;
 }
 
-
-
-// Create Admin Controller
+// CREATE Admin
 exports.createAdmin = async (req, res) => {
   try {
-    const { name, dob, mobile, email, designationId } = req.body;
+    const { companyName, registrationNumber, mobile, email, password } = req.body;
 
-    // Validate required fields
-    if (!name || !dob || !mobile || !email || !designationId) {
+    if (!companyName || !registrationNumber || !mobile || !email) {
       return res.status(400).json({ status: false, message: "All fields are required." });
     }
 
-    const userId = generateUserId(name);
+    const userId = generateUserId(companyName);
 
-    try {
-      // Check if the designation exists
-      const designation = await Designation.findById(designationId);
-      if (!designation) {
-        return res.status(400).json({ status: false, message: "Invalid designationId" });
+    const admin = await Admin.create({
+      userId,
+      companyName,
+      registrationNumber,
+      userRole: '2',
+      mobile,
+      email,
+      password: password || "password@123"
+    });
+
+    res.status(201).json({
+      status: true,
+      message: "Admin created successfully",
+      data: {
+        ...admin.toObject(),
+        roleId: '2',
+        roleName: 'Admin'
       }
-
-      const admin = await Admin.create({
-        userId,
-        name,
-        dob,
-        userRole: "1",
-        mobile,
-        email,
-        designationId: designation._id, // Store ObjectId
-        password: "password@123"
-      });
-
-      res.status(201).json({ status: true, message: "Admin created successfully", data: admin });
-    } catch (err) {
-      if (err.code === 11000 && err.keyPattern && err.keyPattern.email) {
-        res.status(200).json({ status: true, message: "Email already exists" });
-      } else {
-        res.status(500).json({ status: false, message: err.message });
-      }
-    }
+    });
   } catch (err) {
+    if (err.code === 11000 && err.keyPattern && err.keyPattern.email) {
+      return res.status(400).json({ status: false, message: "Email already exists" });
+    }
     res.status(500).json({ status: false, message: err.message });
   }
 };
 
-
-// Get All Admins
+// GET All Admins
 exports.getAdmins = async (req, res) => {
   try {
-    const admins = await Admin.find()
-      .select("-password")
-      .populate({
-        path: "designationId",
-        select: "designationName"
-      });
+    const admins = await Admin.find().select("-password");
 
-    const result = admins.map(admin => {
-      let designation = admin.designationId;
+    const result = await Promise.all(admins.map(async admin => {
+      // const role = await Role.findOne({ roleId: admin.userRole });
       return {
         ...admin.toObject(),
-        designationId: designation?._id || null,
-        designationName: designation?.designationName || null
+        roleId: '2',
+        roleName: 'Admin'
       };
-    });
-
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-
-
-
-
-// Get Admin by userId
-exports.getAdminByUserId = async (req, res) => {
-  try {
-    const { userId } = req.params;
-    if (!userId) {
-      return res.status(400).json({ status: false, message: "userId is required" });
-    }
-
-    const admin = await Admin.findOne({ userId })
-      .select("-password")
-      .populate({
-        path: "designationId",
-        select: "designationName"
-      });
-
-    if (!admin) {
-      return res.status(404).json({ status: false, message: "Admin not found" });
-    }
-
-    const designation = admin.designationId;
-    const result = {
-      ...admin.toObject(),
-      designationId: designation?._id || null,
-      designationName: designation?.designationName || null
-    };
+    }));
 
     res.json({ status: true, data: result });
   } catch (err) {
@@ -117,32 +73,78 @@ exports.getAdminByUserId = async (req, res) => {
   }
 };
 
-
-// Update Admin
-exports.updateAdmin = async (req, res) => {
+// GET Admin by userId
+exports.getAdminByUserId = async (req, res) => {
   try {
-    const { userId, ...updateData } = req.body;
+    const { userId } = req.params;
     if (!userId) {
       return res.status(400).json({ status: false, message: "userId is required" });
     }
 
-    const admin = await Admin.findOneAndUpdate({ userId }, updateData, { new: true });
+    const admin = await Admin.findOne({ userId }).select("-password");
     if (!admin) {
       return res.status(404).json({ status: false, message: "Admin not found" });
     }
 
-    res.json({ status: true, data: admin });
+    // const role = await Role.findOne({ roleId: admin.userRole });
+
+    res.json({
+      status: true,
+      data: {
+        ...admin.toObject(),
+        roleId: '2',
+        roleName: 'Admin'
+      }
+    });
   } catch (err) {
-    res.status(400).json({ status: false, message: err.message });
+    res.status(500).json({ status: false, message: err.message });
   }
 };
 
-// Delete Admin
-exports.deleteAdmin = async (req, res) => {
+// UPDATE Admin
+exports.updateAdmin = async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, companyName, registrationNumber, mobile, email, password } = req.body;
+
     if (!userId) {
       return res.status(400).json({ status: false, message: "userId is required" });
+    }
+
+    const updateData = { companyName, registrationNumber, mobile, email };
+    if (password) updateData.password = password;
+
+    if (companyName) {
+      updateData.userId = generateUserId(companyName);
+    }
+
+    const updatedAdmin = await Admin.findOneAndUpdate({ userId }, updateData, { new: true });
+    if (!updatedAdmin) {
+      return res.status(404).json({ status: false, message: "Admin not found" });
+    }
+
+    // const role = await Role.findOne({ roleId: updatedAdmin.userRole });
+
+    res.json({
+      status: true,
+      message: "Admin updated successfully",
+    });
+  } catch (err) {
+    res.status(500).json({ status: false, message: err.message });
+  }
+};
+
+// DELETE Admin
+exports.deleteAdmin = async (req, res) => {
+  try {
+    const { userId, superAdminId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ status: false, message: "userId is required" });
+    }
+
+    const superAdmin = await SuperAdmin.findOne({ userId: superAdminId });
+    if (!superAdmin) {
+      return res.status(403).json({ status: false, message: "You are not super admin" });
     }
 
     const admin = await Admin.findOneAndDelete({ userId });
@@ -150,8 +152,9 @@ exports.deleteAdmin = async (req, res) => {
       return res.status(404).json({ status: false, message: "Admin not found" });
     }
 
-    res.json({ status: true, message: "Admin deleted successfully" });
+    return res.status(200).json({ status: true, message: "Admin deleted successfully" });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message });
+    return res.status(500).json({ status: false, message: err.message });
   }
 };
+
